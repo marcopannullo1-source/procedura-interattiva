@@ -1,122 +1,120 @@
 import streamlit as st
 from streamlit_mermaid import st_mermaid
 
-# Configurazione estetica
+# 1. Configurazione della pagina
 st.set_page_config(page_title="DD Interactive Engine", layout="wide")
 
-# --- 1. GESTIONE DELLO STATO (Il "Cervello" dell'app) ---
-if "step" not in st.session_state:
-    st.session_state.step = 1 # Inizia dallo Step 1
+# 2. Inizializzazione del motore decisionale (Session State)
+if "current_step" not in st.session_state:
+    st.session_state.current_step = "START"
 if "history" not in st.session_state:
-    st.session_state.history = [] # Tracciamento verticale
-if "scoping_choice" not in st.session_state:
-    st.session_state.scoping_choice = None
+    st.session_state.history = []
+if "data" not in st.session_state:
+    st.session_state.data = {}
 
-# Funzione per registrare le decisioni
-def log_decision(label):
-    if label not in st.session_state.history:
-        st.session_state.history.append(label)
+# Funzione per avanzare nella procedura
+def move_to(node, label, decision_data=None):
+    st.session_state.current_step = node
+    st.session_state.history.append(f"Step {len(st.session_state.history)+1}: {label}")
+    if decision_data:
+        st.session_state.data.update(decision_data)
 
-# --- 2. SIDEBAR (SCHERMO VERTICALE - CONTATORE STEP) ---
+# --- SCHERMO VERTICALE: SIDEBAR (STEP TRACKER) ---
 with st.sidebar:
-    st.header("📟 Step Tracker")
-    st.write(f"Ti trovi allo step: **{st.session_state.step}**")
-    st.divider()
-    # Mostra la lista delle decisioni prese finora
-    for i, h in enumerate(st.session_state.history):
-        st.success(f"{i+1}. {h}")
+    st.title("📟 Step Tracker")
+    st.write(f"Decisioni prese: **{len(st.session_state.history)}**")
+    for item in st.session_state.history:
+        st.success(item)
     
-    if st.button("Riavvia Procedura"):
-        st.session_state.step = 1
+    st.divider()
+    if st.button("Reset Procedura"):
+        st.session_state.current_step = "START"
         st.session_state.history = []
+        st.session_state.data = {}
         st.rerun()
 
-# --- 3. INTERFACCIA PRINCIPALE (SCHERMO ORIZZONTALE) ---
-st.title("🛡️ Sistema Interattivo di Due Diligence")
+# --- SCHERMO ORIZZONTALE: INTERFACCIA INTERROGABILE ---
+st.title("🛡️ Sistema Decisionale Due Diligence")
 
-col_interrogazione, col_visualizzazione = st.columns([1, 1.5])
+col_input, col_viz = st.columns([1, 1.5])
 
-with col_interrogazione:
-    st.subheader("📝 Interrogazione Checkpoint")
-
-    # --- STEP 1: MATRICE DI SCOPING ---
-    if st.session_state.step == 1:
-        st.info("FASE 2: Identifica la fattispecie dell'accordo")
-        scoping = st.radio("Seleziona Fattispecie:", 
-                          ["M&A / JV / Investimenti", "Business Associate / Agenti", "Fornitori / Clienti"])
+with col_input:
+    st.subheader("📝 Checkpoint Decisionale")
+    
+    # --- LOGICA WHAT/IF ---
+    
+    # STEP 1: MATRICE DI SCOPING
+    if st.session_state.current_step == "START":
+        st.info("FASE 2: Identificazione Fattispecie")
+        fattispecie = st.radio("Tipo di Accordo:", ["M&A / JV", "Business Associate / Agenti", "Fornitori / Clienti"])
         if st.button("Conferma Scoping"):
-            st.session_state.scoping_choice = scoping
-            log_decision(f"Scoping: {scoping}")
-            st.session_state.step = 2
+            move_to("QUEST", f"Scoping: {fattispecie}", {"tipo": fattispecie})
             st.rerun()
 
-    # --- STEP 2: VERIFICA DOCUMENTALE ---
-    elif st.session_state.step == 2:
-        st.info("CHECKPOINT: Documentazione Obbligatoria")
-        q_ok = st.checkbox("Questionario DD ricevuto e completo?")
-        check_tvr = st.checkbox("TVR acquisita?")
-        
-        if q_ok and check_tvr:
-            if st.button("Procedi a Satellite B"):
-                log_decision("Documentazione Verificata")
-                st.session_state.step = 3
+    # STEP 2: VERIFICA DOCUMENTALE
+    elif st.session_step == "QUEST" or st.session_state.current_step == "QUEST":
+        st.info("CHECKPOINT: Documentazione")
+        c1 = st.checkbox("Questionario DD ricevuto?")
+        c2 = st.checkbox("TVR / Company Card acquisita?")
+        if c1 and c2:
+            if st.button("Procedi a SATELLITE B"):
+                move_to("SATB", "Documentazione OK")
                 st.rerun()
         else:
-            st.warning("Completa i check per proseguire")
+            st.warning("Azione necessaria: Richiedere documenti mancanti.")
 
-    # --- STEP 3: SATELLITE B (SOGLIE) ---
-    elif st.session_state.step == 3:
-        st.info("SATELLITE B: Analisi Assetto Proprietario")
-        soglia = st.selectbox("Seleziona il livello di rischio/soglia:", 
-                             ["L1 Strategico (10%)", "Standard AML (25%)", "Controllo Diritto (50%)", "Soglia 0% (LR)"])
+    # STEP 3: SATELLITE B (DRILL DOWN ASSETTO)
+    elif st.session_state.current_step == "SATB":
+        st.info("SATELLITE B: Analisi Assetto")
+        rischio = st.selectbox("Livello Rischio/Fattispecie:", 
+                              ["M&A Strategico (Soglia 10%)", "Standard AML (Soglia 25%)", "Controllo Diritto (Soglia 50%)"])
         if st.button("Consolida Lista Nominativi"):
-            log_decision(f"Soglia definita: {soglia}")
-            st.session_state.step = 4
+            move_to("SATC", f"Soglia definita: {rischio}")
             st.rerun()
 
-    # --- STEP 4: SATELLITE C (DETTAGLI TECNICI FORNITORI) ---
-    elif st.session_state.step == 4:
+    # STEP 4: SATELLITE C (SCREENING TECNICO)
+    elif st.session_state.current_step == "SATC":
         st.info("SATELLITE C: Screening Reputazionale")
-        triage = st.radio("Livello di Rischio emerso:", ["Alto", "Standard", "Basso"])
+        triage = st.select_slider("Triage di Rischio:", options=["Basso", "Standard", "Alto"])
         
-        # INTERROGAZIONE FORNITORI
-        st.markdown("### 🔍 Fornitori Tecnici da consultare:")
+        # DETTAGLI TECNICI DINAMICI
+        st.markdown("#### 🔍 Fornitori da utilizzare:")
         if triage == "Alto":
-            st.warning("- DD4Eni 2.0 (Full)\n- DJ Factiva (Global)\n- ORBIS (Assetto)\n- WCO (Sanzioni)")
+            st.warning("**FULL ACCESS:** DD4Eni 2.0, DJ Factiva, ORBIS, WCO")
+        elif triage == "Standard":
+            st.info("**STANDARD:** DD4Eni 2.0, CRIBIS, DJ Factiva")
         else:
-            st.success("- DD4Eni 2.0 (Standard)\n- CRIBIS / D&B\n- Google Web")
-        
-        esito = st.radio("Riscontro individuato?", ["Nessuno (Clean)", "Positività / Red Flag"])
-        if st.button("Concludi Workflow"):
-            log_decision(f"Screening: {esito}")
-            st.session_state.step = 5
+            st.success("**ESSENTIAL:** DD4Eni 2.0, Liste Sanzioni")
+            
+        esito = st.radio("Risultato Screening:", ["Nessun Riscontro", "Red Flag"])
+        if st.button("Concludi Analisi"):
+            move_to("FINAL", f"Esito: {esito}", {"esito": esito})
             st.rerun()
 
-    # --- STEP 5: REPORTING ---
-    elif st.session_state.step == 5:
+    # STEP 5: CONCLUSIONE
+    elif st.session_state.current_step == "FINAL":
         st.balloons()
-        st.subheader("🏁 Esito Procedura")
-        if "Red Flag" in st.session_state.history[-1]:
+        if st.session_state.data.get("esito") == "Red Flag":
             st.error("AZIONE: Invio FORM 2 a Presidio BIC / AC-AML")
         else:
-            st.success("AZIONE: Invio FORM 1 a DDM (Chiusura)")
+            st.success("AZIONE: Invio FORM 1 a DDM")
 
-# --- 4. VISUALIZZAZIONE DINAMICA (DIAGRAMMA) ---
-with col_visualizzazione:
-    # Qui il diagramma Mermaid cambia "luce" in base allo step
-    # Usiamo colori diversi per mostrare all'utente dove si trova
+# --- VISUALIZZAZIONE DINAMICA ---
+with col_viz:
+    st.subheader("🗺️ Mappa del Workflow")
     
-    nodi = {1: "Fase2", 2: "DocCheck", 3: "SatB", 4: "SatC", 5: "Reporting"}
-    current_node = nodi.get(st.session_state.step, "Fase2")
-
-    mermaid_code = f"""
+    # Definiamo quale nodo illuminare in base allo step attuale
+    mapping = {"START": "F2", "QUEST": "Doc", "SATB": "B", "SATC": "C", "FINAL": "End"}
+    active = mapping.get(st.session_state.current_step, "F2")
+    
+    # Il codice Mermaid ora ha uno stile "style" dinamico
+    master_mmd = f"""
     flowchart TD
-        Start([RICEZIONE]) --> Fase2{{MATRICE SCOPING}}
-        Fase2 --> DocCheck[VERIFICA DOCUMENTALE]
-        DocCheck --> SatB[[SATELLITE B: ASSETTO]]
-        SatB --> SatC[[SATELLITE C: SCREENING]]
-        SatC --> Reporting{{REPORTING FINALE}}
+        F2{{MATRICE SCOPING}} --> Doc[VERIFICA DOCUMENTALE]
+        Doc --> B[[SATELLITE B: ASSETTO]]
+        B --> C[[SATELLITE C: SCREENING]]
+        C --> End{{REPORTING FINALE}}
         
-        style {current_node} fill:#ff4b4b,stroke:#333,stroke-width:4px,color:#fff
+        style {active} fill:#ff4b4b,stroke:#333,stroke-width:4px,color:#fff
     """
-    st_mermaid(mermaid_code, height=500)
+    st_mermaid(master_mmd, height=450)
