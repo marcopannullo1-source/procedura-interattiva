@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+
+<html lang="it">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Guida Interattiva Procedure Integrity</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; background-color: #f8f9fa; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 95%; max-width: 1500px; }
+        h1 { color: #01579b; margin-bottom: 5px; text-align: center; }
+        .subtitle { color: #666; margin-bottom: 25px; text-align: center; font-style: italic; }
+        .nav { margin-bottom: 20px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+        button { padding: 10px 16px; cursor: pointer; border: 1px solid #01579b; border-radius: 5px; background-color: white; color: #01579b; font-weight: 600; transition: 0.3s; }
+        button:hover { background-color: #e1f5fe; }
+        button.active { background-color: #01579b; color: white; }
+        #diagram-container { 
+            margin-top: 10px; 
+            overflow: auto; 
+            background: #fff; 
+            border: 1px solid #dee2e6; 
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 600px;
+            display: flex;
+            justify-content: center;
+        }
+    
+#zoom-controls { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; }
+.zoom-btn { background:#0078d7; color:white; border:none; padding:10px 14px; margin:5px; font-size:20px; border-radius:6px; cursor:pointer; }
+#diagram-container { display: block !important; overflow: auto !important; }
+.mermaid { max-width: none !important; overflow: visible !important; white-space: normal !important; }
+#diagram-container svg { width: 100% !important; height: auto !important; }</style>
+</head>
+<body>
+<div class="container">
+<h1>Workflow Interattivo Integrity DD</h1>
+<p class="subtitle">Clicca sui nodi del diagramma Master o usa i tasti di navigazione per esplorare le fasi.</p>
+<div class="nav">
+<button id="btn-master" onclick="loadDiagram('master')">Workflow Master</button>
+<button id="btn-fase1" onclick="loadDiagram('fase1')">Fase 1: Documentale</button>
+<button id="btn-fase2" onclick="loadDiagram('fase2')">Fase 2: Assetto Proprietario</button>
+<button id="btn-fase3" onclick="loadDiagram('fase3')">Fase 3: Assetto Organizzativo</button>
+<button id="btn-fase4" onclick="loadDiagram('fase4')">Fase 4: Screening</button>
+</div>
+<div id="diagram-container"></div>
+</div>
+<script>
+    mermaid.initialize({ 
+        startOnLoad: false, 
+        securityLevel: 'loose',
+        theme: 'default',
+        flowchart: { useMaxWidth: false, htmlLabels: true }
+    });
+
+    const diagrams = {
+        // Master Workflow
+        master: `---
+config:
+  layout: elk
+---
+flowchart TB
+  Start(["RICEZIONE PRATICA da FR"]) --> SatA[["FASE 1: VERIFICA DOCUMENTALE"]]
+  SatA --> SatB[["FASE 2: <br> RICOSTRUZIONE ASSETTO PROPRIETARIO"]]
+  SatB --> SatC[["FASE 3: <br> RICOSTRUZIONE ASSETTO ORGANIZZATIVO"]]
+  SatC --> SatD[["FASE 4: <br> SCREENING E FONTI APERTE"]]
+  SatD --> Finish(["Completamento e chiusura DD "]) --> SatE[["FASE 5: <br> Monitoraggio CTP"]]
+
+    style SatA fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style SatB fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style SatC fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style SatD fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style SatE fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+
+    click SatA "javascript:loadDiagram('fase1')" "Vai a Fase 1"
+    click SatB "javascript:loadDiagram('fase2')" "Vai a Fase 2"
+    click SatC "javascript:loadDiagram('fase3')" "Vai a Fase 3"
+    click SatD "javascript:loadDiagram('fase4')" "Vai a Fase 4"`,
+
+        // Fase 1
+        fase1: `---
+config:
+  layout: elk
+---
+flowchart TB
+    Start(("INIZIO FASE 1:<br> VERIFICA DOCUMENTALE")) --> DDCROSS["CK Vista trasversale: <br>- query e-PAGE per ck DD SECUR<br> -mail APR in caso di DD in Liste Interne Eni&gt;Procurement <br> -mail KYC&gt; ETB e EGEM, in caso di CTP trading/shipping/broker"]
+    DDCROSS --> CKDD@{shape: diamond, label: "VISTA TRASVERSALE: <br> DD svolte di recente?"}
+    CKDD -- Sì --> ASKUR("Ck con Resp. II liv per proposta a UR di richiesta Riduzione/Esenzione a P.S. ACC")
+    CKDD -- No --> BASE["Check docs standard:<br>- UR&gt; Modulo Informazioni Preliminari - MIP<br>- UR&gt; Tool Valutazione Rischio<br>- DD4Eni Company Card / Cribis / D&amp;B / Orbis <br> - UR&gt; Form Rapporto Integrity DD - Sez. UR"]
+    ASKUR -- "Proposta in <br>valutazione al P.S." --> CKANSW{"Esenzione O Riduzione?"}
+    CKANSW -- Riduzione --> Start
+    CKANSW -- Esenzione --> CLOSE(("VAI A WF Master &gt; <br> Completamento e chiusura DD"))
+    ASKUR -- Proposta respinta --> BASE
+    BASE --> FATTISPECIE{"<b> Fattispecie Ctr </b>"}
+    FATTISPECIE --> PFIN{"Progetti Finanziati, Organizzazioni No Profit"}
+    PFIN -- "-Adesione a Prog. finanziati <br> -Costituzione di No Profit <br> -Adesione a No Profit già costituite" --> RISK
+    FATTISPECIE -- Sponsorship --> SPONS["Nota di Avvio DD &gt; <br> Descr. sponsorizzazione &amp; beneficiario"]
+    FATTISPECIE --> BA{"Business Agreement"} & BA1{"Business Associate"}
+    BA -- Investimenti > M&A --> MA1["Questionario sul Target"]
+    BA -- Investimenti &gt; JV <br> Investimenti &gt; CVC --> RISK{"CK Liv. Rischio <br> altri CTR"}
+    BA1 -- Canali di vendita (distribuzione/rivendita di prodotti/servizi) > Contratti di agenzia --> AGENT["Dichiarazione Compliance Sub-agenti (SE PREVISTI)"]
+    BA1 -- "Intermediari - P.G,<br> Consulenti P.G. <br> Agenti <br> Broker" --> RISK
+    BA1 --> CONSLIST{"CONSULENTI <br> gestiti con ELENCHI"}
+    CONSLIST -- "Consulenti P.G. <br> Studi professionali" --> CONSPG["Visura Camerale o documento equivalente (non più vecchia di 6 mesi)"]
+    CONSPG --> CONSLETT["Lettera Anti-Corruzione <br>e Anti-Riciclaggio <br> per Consulenti <br>&amp; Doc. Identità"]
+    CONSLIST -- "Consulenti P.F." --> CONSLETT
+    CONSLETT --> FINE["Avvio ANALISI <br> previste per tipo DD"] & FINE
+    BA1 -- "Consulenti P.F." --> CONSLETT
+    BA1 -- "Collaboration Agreement: <br> -Collaborazioni commerciale / forestry / università / agrefeedstock <br> -Consulenti P.G. |" --> RISK
+    SPONS --> RISK1{"CK Liv. Rischio <br>SPONS"}
+    MA1 --> RISK
+    AGENT --> RISK
+    RISK -- Livello 1 / 2 --> FINE
+    RISK -- Livello 3 / 4 --> CheckPA{"CTP P.A. <br> CTP sottoposta a controllo pubblico <br> International Company <br> Società controllate al 100%"}
+    RISK1 -- Livello 2 / 3 / 4 --> CheckPA
+    RISK1 -- Livello 1 --> FINE
+    CheckPA -- Sì --> FINE
+    CheckPA -- No --> CKTRUST{"CTP soggetta a TRUST / Società FIDUCIARIA?"}
+    CKTRUST -- No ---> HIGH("Ck Modulistica (Questionario DD risk based):<br>(i) sottoscritta da Legale Rappresentante / soggetto con adeguati poteri di rappresentanza;<br>(ii) completa di documentazione richiesta (visura su titolari e RL/PRES/AD)")
+    CKTRUST -- Si --> DISCLOSURE("Richiesta a CTP/Fiduciaria/Trust disclosure P.F. che hanno partecipazioni in CTP")
+    DISCLOSURE --> HIGH
+    HIGH --> CKMOD{"Modulistica ricevuta?"}
+    CKMOD -- Si --> FINE
+    CKMOD -- No ---> STOP["SOSPENSIONE DD fino a ricezione Modulistica"]
+    STOP --> HIGH
+    FINE --> END(("FINE FASE 1:<br> VERIFICA DOCUMENTALE"))
+
+    style Start fill:#FFE0B2
+    style DDCROSS fill:#e1f5fe,stroke:#01579b,text-align:left
+    style CKDD fill:#FFF9C4
+    style BASE fill:#e1f5fe,stroke:#01579b,text-align:left
+    style CKANSW fill:#BBDEFB
+    style CLOSE fill:#FFE0B2
+    style FATTISPECIE fill:#fff9c4,stroke:#fbc02d
+    style PFIN  fill:#C8E6C9,stroke:#fbc02d
+    style SPONS fill:#e1f5fe,stroke:#01579b
+    style BA fill:#C8E6C9,stroke:#fbc02d
+    style BA1 fill:#C8E6C9,stroke:#fbc02d
+    style MA1 fill:#e1f5fe,stroke:#01579b
+    style RISK fill:#fff9c4,stroke:#fbc02d
+    style AGENT fill:#e1f5fe,stroke:#01579b
+    style CONSLIST fill:#C8E6C9,stroke:#fbc02d
+    style CONSPG fill:#e1f5fe,stroke:#01579b
+    style CONSLETT fill:#e1f5fe,stroke:#01579b
+    style FINE fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style RISK1 fill:#fff9c4,stroke:#fbc02d
+    style CheckPA fill:#FFCDD2,text-align:left
+    style CKTRUST fill:#FFCDD2
+    style HIGH text-align:left
+    style DISCLOSURE text-align:left
+    style CKMOD fill:#fff9c4,stroke:#fbc02d
+    style STOP fill:#FF6D00
+    style END fill:#FFE0B2`,
+
+        // Fase 2
+        fase2: `---
+config:
+  layout: elk
+---
+flowchart TB
+    Start(("INIZIO FASE 2:<br> RICOSTRUZIONE <br> ASSETTO PROPRIETARIO")) -- "NATURA GIURIDICA CTP" --> 
+    TriagePG-PF{"CTP P.F. o P.G.?"} -- P.F. --> DismissPF("Identificazione dei titolari")-->Consolidation
+    TriagePG-PF -- P.G. --> CkOwn["Focus su assetto proprietario <br> e controllo"]
+    CkOwn --> Triage1{"CTP Ente pubblico o controllata al 100% da Ente pubblico?"}
+    Triage1 -- SI --> Dismiss["Ricostruzione assetto proprietario non richiesto"]
+    Dismiss --> End(("FINE FASE 2:<br> RICOSTRUZIONE <br> ASSETTO PROPRIETARIO"))
+    Triage1--NO--> Triage1_1{"CTP controllata, direttamente o indirettamente, non al 100% dallo Stato o altro Ente pubblico?"}
+    Triage1_1--SI-->Partial["Ricostruzione assetto proprietario <br>sui soli soci di natura privata"] 
+    Triage1_1 -- NO --> Triage3{"CTP appartenente a Network Internazionale?"}
+    Triage3 -- SI --> Dismiss
+    Triage3 -- NO --> Triage2{"CTP International Company o controllata al 100% da I.C.?"}
+    Triage2 -- SI --> Dismiss
+    Partial --> CkCTP["Focus su natura societaria della P.G"]
+    Triage2 -- NO --> Dismiss2["Ricostruzione assetto proprietario solo su soli soci DIVERSI dalla I.C."]
+    Dismiss2 --> CkCTP
+    
+    CkCTP --> TriageMKT{"Società quotata su mercato regolamentato?"} --SI--> 
+    MKT1("Individuazione azionisti pubblici con partecipazioni dirette / indirette >=5% <br> Ck siti autorità mercati / documentazione INDIPENDENTE (se info incomplete/ non disponibili)")
+    --> Consolidation
+    TriageMKT -- NO --> TriageNoP{"Cooperativa/ Associazione/ Fondazione/ Ente non profit?"} -- SI --> TriageNoP1{"Soci tesserati e/o che non detengono quote"?} 
+    TriageNoP1 -- NO --> Nop1("Individuazione soci / associati /fondatori <br> e componenti organi di gestione/ indirizzo / direzione") --> Consolidation
+    TriageNoP1 -- SI --> Dismiss
+    TriageNoP -- NO --> TriageTRUST{"società fiduciaria / Trust?"} -- SI --> TRUST1("Disclosure da CTP su P.F. con partecipazioni dirette / indirette <br> nella CTP tramite fiduciaria/trust") --> Consolidation
+    TriageTRUST -- NO --> TriageFI{"Fondo di Investimento?"} -- SI --> FI1("Info su: numero / tipologia investitori/ titolari; <br> organi indirizzo; <br> società di gestione") --> Consolidation
+    TriageFI -- NO --> TriageR4Raff{"CTP proposta da soggetto pubblico/P.Uff. <br> e con natura di società privata locale <br> residente/operante in Paesi ad alto rischio corruzione e/o riciclaggio"}
+    TriageR4Raff -- SI --> Threshold_All("Tutte le P.F. e P.G. con ogni singola partecipazione") --> Consolidation
+    TriageR4Raff --NO --> TriageCTR{"CK Fattispecie <br> Contratto"}
+
+%%  Business Agreement: Investimenti>M&A; Investimenti>JV; Investimenti>CVC
+    TriageCTR ---> BAg["Business Agreement"] -- Investimenti>M&A <br> Investimenti>JV <br>Investimenti>CVC --> TriageR1{"Livello di rischio <br> DD da 2 a 4"}
+    Threshold_All --> Consolidation["CONSOLIDAMENTO LISTA NOMINATIVI <br>(Persone Fisiche e Giuridiche)"]
+    TriageR1 -- L2 --> Threshold_20("P.F. e P.G. con soglia partecipazioni >= 20%") --> Consolidation
+    TriageR1 -- L3 --> Threshold_10("P.F. e P.G. con soglia partecipazioni >= 10%") --> Consolidation
+    TriageR1 -- L4 --> Threshold_5("P.F. e P.G. con soglia partecipazioni >= 5%") --> Consolidation
+
+%%  Business Associate 
+    TriageCTR --> BA["Business associate"]-- "Canali di vendita > Contratti di agenzia" --> TriageR2{"Livello di rischio <br> DD da 3 a 4"}
+    BA -- "Intermediari - caso P.G.: agevolano stiipula ctr con soggetti terzi" --> TriageR2
+    BA -- "Consulenti. Agenti e Broker - caso P.G.: commercializzano prodotti/servizi Eni" --> TriageR2
+    BA--"Consulenti gestiti tramite ELENCHI > Consulenti P.G." --> CONS("Individuazione dei titolari") --> Consolidation
+
+    TriageR2 -- L3 --> Threshold_10("P.F. e P.G. con soglia partecipazioni >= 10%") --> Consolidation
+    TriageR2 -- L4 --> Threshold_5("P.F. e P.G. con soglia partecipazioni >= 5%") --> Consolidation
+
+%%  Collaboration Agreement
+    TriageCTR --> CA["Collaboration Agreement"] -- Collaborazioni commerciale / Forestry / Università / Agrefeedstock --> TriageR2 	
+    CA -- Consulenti P.G. --> CONS --> Consolidation
+
+%%  Sponsorizzazioni
+    TriageCTR --> Sponsor["Sponsorship"]--> TriageR2
+
+%%  Progetti finanziati
+    TriageCTR --> CkPrjFin{"Adesione a progetti finanziati <br> (v. GP par. 6.5.4)?"}--SI-->PrjFin1("DD risk based SOLO su COORDINATORE")--> TriageR2
+    CkPrjFin -- NO --> PrjFin2("DD risk based per Business associate") --> TriageR2
+
+%%  Questionario DD
+    TriageCTR -- "Questionario DD <br>(Par. 6.2)" --> Questionnaire("ANALISI DICHIARAZIONI <br>CONTROPARTE")
+    Questionnaire --> Get_SelfDecl("Estrazione PEP/Sanzionati <br>dichiarati 'Sotto Soglia'")
+    Get_SelfDecl --> Consolidation
+    Consolidation --> End
+
+    style Start fill:#FFE0B2 
+    style TriagePG-PF fill:#fff9c4,stroke:#fbc02d
+    style Triage1 fill:#fff9c4,stroke:#fbc02d
+    style Triage1_1 fill:#fff9c4,stroke:#fbc02d
+    style DismissPF fill:#fca1aa,stroke:#01579b,stroke-width:2px, text-align:left
+    style CkOwn fill:#9c4,stroke:#fbc02d
+    style Dismiss fill:#fca1aa,stroke:#01579b,stroke-width:2px, text-align:left
+    style End fill:#FFE0B2, text-align:left
+
+    style Triage2 fill:#fff9c4,stroke:#fbc02d
+    style Triage3 fill:#fff9c4,stroke:#fbc02d
+    style Partial fill:#FFD600,stroke:#01579b,stroke-width:2px, text-align:left
+    style CkCTP fill:#9c4,stroke:#fbc02d
+
+    style TriageMKT fill:#fff9c4,stroke:#fbc02d
+    style TriageNoP fill:#fff9c4,stroke:#fbc02d
+    style TriageNoP1 fill:#fff9c4,stroke:#fbc02d
+    
+    style TriageTRUST fill:#fff9c4,stroke:#fbc02d
+    style TriageFI fill:#fff9c4,stroke:#fbc02d
+
+    style CkPrjFin fill:#9c4,stroke:#fbc02d
+
+    style TriageCTR fill:#9c4,stroke:#fbc02d
+    style Dismiss2 fill:#FFD600, text-align:left
+
+    style TriageR4Raff fill:#fff9c4,stroke:#fbc02d
+    style TriageR1 fill:#9c4,stroke:#fbc02d
+    style TriageR2 fill:#9c4,stroke:#fbc02d
+
+    style Threshold_20 fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Threshold_10 fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+
+    style BAg fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style BA fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style CA fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+
+    style Sponsor fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+
+    style Questionnaire fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+
+    style Consolidation fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px, text-align:left`,
+
+        // Fase 3
+        fase3: `---
+config:
+  layout: elk
+---
+flowchart TB
+    Start(("INIZIO FASE 3:<br> RICOSTRUZIONE <br> ASSETTO ORGANIZZATIVO")) -- "NATURA GIURIDICA CTP" --> 
+    CkCTP["Focus su natura societaria della P.G"]
+
+%%  Business Agreement: Investimenti>M&A; Investimenti>JV; Investimenti>CVC
+    CkCTP-->TriageCTR{"CK Fattispecie contratto"} ---> BAg["Business Agreement"] -- Investimenti>M&A <br> Investimenti>JV <br>Investimenti>CVC --> 
+    SETUP["SET-UP RICERCA:<br/>1. Lingue: IT, EN + Lingua Locale Paese CTP <br/>2. DB da usare SEMPRE: <br> DD4Eni <br> CRIBIS-D&B <br> ORBIS <br> DJ ASAM <br> WCO <br> Factiva <br>3. Per approfondire: Bing Web"] --> OSINT{DD risk based <br/> da 1 - basso a 4 - alto}  
+    OSINT -- Livello di rischio 1 --> R1("Ck DB info societarie <br> Ck fonti aperte su:<br>- Controparte <br>- Legale Rappresentante: AD/Presidente/Vice-pres./etc <br>- Referenti CTP")
+    OSINT -- Livello di rischio 2 / 3 / 4 --> R2("Ck DB info societarie <br> Ck fonti aperte su:<br>- Controparte <br>- Legale Rappresentante: AD/Presidente/Vice-pres./etc <br>- Componenti CdA <br>- Referenti CTP <br> <b>- Titolari: vedi CONSOLIDAMENTO lista nominativi FASE 2 - ASSETTO PROPRIETARIO </b>")
+    R1 --> Consolidation["CONSOLIDAMENTO:<br> - NOMINATIVI PF e PG <br> - ESITI Fonti Aperte <br> - RF info CTP vs DB societari non coerenti"] --> End
+    R2 --> Consolidation --> End
+
+%%  Business Associate 
+    TriageCTR --> BA["Business associate"]-- "Canali di vendita > Contratti di agenzia" --> DDRB_A{"DD risk based <br> <b> NO Business Agreement"}
+    DDRB_A -- Livello di rischio 1 / 2 --> OSINT_12["SET-UP RICERCA:<br/>1. Lingue: IT, EN + Lingua Locale Paese CTP <br/>2. DB da usare SEMPRE: <br> DD4Eni <br> CRIBIS-D&B <br> ORBIS <br> DJ ASAM <br> WCO <br>3. Per approfondire: Bing Web"] 
+    OSINT_12 --> CkOSINT_12{"Ck livello di rischio"} -- Livello di rischio 1 --> R1
+    OSINT_12  --> CkOSINT_12 -- Livello di rischio 2 --> R2
+    DDRB_A -- Livello di rischio 3 / 4 --> OSINT_34["SET-UP RICERCA:<br/>1. Lingue: IT, EN + Lingua Locale Paese CTP <br/>2. DB da usare SEMPRE: <br> DD4Eni <br> CRIBIS-D&B <br> ORBIS <br> DJ ASAM <br> WCO <br> Factiva <br>3. Per approfondire: Bing Web"] --> R2
+%%     OSINT_34 --> COMPROG
+    BA -- "Intermediari - caso P.G.: agevolano stipula ctr con soggetti terzi" --> DDRB_A
+    BA -- "Consulenti, Agenti e Broker - caso P.G.: commercializzano prodotti/servizi Eni" --> DDRB_A
+
+    BA--"Consulenti gestiti tramite ELENCHI > Consulenti P.G." --> ADSPEC("Adempimenti specifici")
+
+%%  Collaboration Agreement
+    TriageCTR --> CA["Collaboration Agreement"] -- Collaborazioni commerciale / Forestry / Università / Agrefeedstock --> DDRB_A 	
+    CA -- Consulenti P.G. --> DDRB_A
+
+%%  Sponsorizzazioni
+    TriageCTR --> Sponsor["Sponsorship"]--> CKPROM{"Promotore/Organizzatore <br> diverso dalla Controparte?"} -- NO -->  DDRB_A
+    CKPROM -- SI --> CKPROM_Y("Includere Promotore in Fonti Aperte") --> DDRB_A
+
+%%  Progetti finanziati
+    TriageCTR --> CkPrjFin{"Adesione a progetti finanziati <br> (v. GP par. 6.5.4)?"} --SI--> PrjFin1("DD risk based SOLO su COORDINATORE")--> DDRB_A
+    CkPrjFin -- NO --> PrjFin2("DD risk based per Business associate") --> DDRB_A
+
+%%  Questionario DD
+    TriageCTR -- "Questionario DD <br>(Par. 6.2)" --> Questionnaire("ANALISI DICHIARAZIONI <br>CONTROPARTE")
+    Questionnaire --> Get_SelfDecl("Estrazione PEP/Sanzionati <br>dichiarati 'Sotto Soglia'")
+    Get_SelfDecl --> End(("FINE FASE 3: RICOSTRUZIONE <br> ASSETTO ORGANIZZATIVO"))
+
+    style Start fill:#FFE0B2 
+    style End fill:#FFE0B2 
+    style CkCTP fill:#9c4,stroke:#fbc02d
+    style TriageCTR fill:#9c4,stroke:#fbc02d
+    style CkPrjFin fill:#9c4,stroke:#fbc02d
+%%  style DDRB fill:#9c4, stroke:#fbc02d
+    style SETUP text-align: left
+    style OSINT fill:#9c4, stroke:#fbc02d
+    style R1 text-align: left
+    style R2 text-align: left
+    style DDRB_A fill:#9c4, stroke:#fbc02d
+    style OSINT_12 text-align: left
+    style OSINT_34 text-align: left
+    style CkOSINT_12 fill: #9c4, stroke:#fbc02d
+    style ADSPEC fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style BAg fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style BA fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style CA fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style Sponsor fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style CKPROM fill: #FBF266, stroke:#fbc02d, text-align: left
+    style CKPROM_Y fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style Questionnaire fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style Consolidation fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px, text-align:left`,
+
+        // Fase 4
+        fase4: `---
+config:
+  layout: elk
+---
+flowchart TB
+    %% INIZIO E SETUP INVESTIGATIVO
+    Start(("INIZIO FASE 4:<br> SCREENING E FONTI APERTE")) -- Risk level da 1 a 4  --> InputList["Input: Lista Nominativi Consolidata FASE 3"]
+    InputList --> ScopeCheck{"Ambito di Analisi?"}
+    ScopeCheck -- "Standard AC&AML" --> Search_Standard["Target base: <br/> RF Notizie Avverse ACC&AML <br/> PEP / PIL"]
+    ScopeCheck -- "LdB Sensibili (es. Agri)" --> Search_DU["Target base + Diritti Umani <br/> (Principi OCSE, HSE, Slavery)"]
+
+    Search_Standard & Search_DU --> Execution["ESECUZIONE RICERCA INTEGRATA:<br>Analisi P.F./P.G. tramite Keyword specialistiche <br> Ck Liste PEP/PIL su P.F. <br> Ck P.F. e P.G. su Fonti Aperte"]
+    
+    Execution --> Found_Check{Riscontro <br/>Individuato?}
+%% COMPLIANCE PROGRAM
+    InputList  -- Risk level 3 e 4  --> COMPROG{"La CTP ha adottato  <br> un COMPLIANCE PROGRAM?"} -- SI --> ScopeCheck
+    COMPROG -- NO --> E_RF_Final
+
+    Found_Check -- "NO" --> E_Clear["ESITO: <br/> NESSUN RISCONTRO"]
+    E_Clear --> Form1[REPORT: FORM 1]
+
+    Found_Check -- "SI" --> E_CheckID{"Soggetto coincidente? <br/> Check Omonimia (match 100% nome PF/PG vs ASAM/WCO)"}
+    
+    E_CheckID -- "NO" --> E_FP["ESITO: FALSO POSITIVO"]
+    E_FP --> E_NoteFP("Nota FP / omonimia <br/> nel Test Book")
+    E_NoteFP --> Form1
+
+    %% IL CUORE DEL WORKFLOW: CLASSIFICAZIONE (E_WhatType)
+    E_CheckID -- "SÌ (Pertinente)" --> E_WhatType{"TIPOLOGIA RISCONTRO <br/> (Analisi del Merito)"}
+
+    %% 1. RED FLAG DIRETTE / PROCEDURALI
+    E_WhatType -- "SÌ (Automatico)" --> RF_Direct["RED FLAG PROCEDURALE:<br/>1. Mafia / Terrorismo<br/>2. Presenza Pubblico Ufficiale (P.U.)<br/>3. VM Eni: Sospensione o Revoca<br/>4. CTP già in JV o M&A di Risk 3-4/BA Intermediari"]
+    RF_Direct --> Action_PU("Informativa a PS AC-AML <br/>(se presente P.U.)") -->E_RF_Final["CONFERMA: RED FLAG"]
+    E_WhatType -- POTENZIALE RED FLAG <br/> (Corruzione, AML) --> WhatRF
+
+    %% 1.1 INIZIO E CATEGORIZZAZIONE    
+        WhatRF(("IDENTIFICAZIONE <br/>POTENZIALE RED FLAG")) --> Cat_Split{Classificazione <br/>Ambito di Rischio}
+
+    %% 1. CATEGORIE RED FLAG
+    Cat_Split -- "AC&AML" --> RF_AC["REATI AC&AML:<br/>- Corruzione, Riciclaggio, Frode<br/>- Truffa, Falso <br/>- Reati Associativi"]
+    Cat_Split -- "DIRITTI UMANI (DU)" --> RF_DU["VIOLAZIONI DU / OCSE:<br/>- Caporalato, Lavoro Minorile/Nero<br/>- Molestie, Schiavitù<br/>- Lesione comunità locali / HSE"]
+    Cat_Split -- "VENDOR MGNT (VM)" --> RF_VM["PROVVEDIMENTI ENI VM:<br/>- Sospensione / Revoca (RF Sempre)<br/>- Stato Attenzione con nulla osta"]
+    Cat_Split -- "P.U. / ALTRO" --> RF_Other["ALTRE CIRCOSTANZE:<br/>- Cause Civili/Amm.ve rilevanti per AC&AML/DU <br/>- elementi negli strumenti normativi Eni rif. all'attuale DD"]
+
+    %% 2. RUOLO DELL'ANALISTA E WHAT-IF CASE
+    RF_AC & RF_DU & RF_VM & RF_Other --> Analyst_Prep["TASK ANALISTA:<br/>1. Raccolta evidenze (Link/PDF)<br/>2. Elaborazione bozza descrizione<br/>3. Verifica pertinenza soggettiva"]
+    Analyst_Prep --> E_RF_Sent{"CK Archiviazione <br/> Assoluzione <br/> Proscioglimento passato in giudicato"} 
+
+    E_RF_Sent -- SI --> E_RF_Time{CK Aggiornamenti Vicenda > 10 anni}
+    E_RF_Sent -- NO --> E_RF_Cond{Ck Condanna > 10 anni} --NO--> Mandatory_CP
+    E_RF_Cond --SI --> E_RF_Time -- NO --> Mandatory_CP("WORKFLOW:  <br/> VERIFICA OBBLIGATORIA <br/> COMPLIANCE PROGRAM")
+    Analyst_Prep --> Discussion["CONFRONTO PREVENTIVO:<br/>Analista <--> Resp. II Livello"]
+
+    %% 3. AZIONI RESPONSABILE II LIVELLO (WHAT-IF & SCENARI)
+    Discussion --> Manager_Check{"Analisi Scenario <br/>(Resp. II Livello)"}
+    Manager_Check -- "Scenario: DD Precedente" --> Prev_DD["RICERCA DATI DD (Tool DD4Eni):<br/>- Verifica gestione passata RF<br/>- Valutazione coerenza decisionale"]
+
+    Prev_DD --> Simplified{Possibile Gestione <br/>Semplificata?}
+    Simplified -- "SÌ" --> Review_Text
+    Simplified -- "NO" --> Depth_Analysis["Approfondimento Specialistico <br/>(Nuove indagini/evidenze)"]
+    Manager_Check -- "Scenario: Nuova RF" --> Review_Text["REVISIONE TESTO RF:<br/>- Verifica Standard Test Book<br/>- Uso Linguaggio Condizionale"]
+
+    %% 4. ESCALATION E CHIUSURA
+    Depth_Analysis & Review_Text --> Submission_L1["SUPERVISIONE FINALE:<br/>Resp. I Livello IDDCC"]
+    Submission_L1 --> E_RF_Final
+
+%% 2. POSITIVITA' MITIGABILE
+    E_RF_Time -- SI --> E_Mit["ESITO: POSITIVITA' MITIGATA"]
+    E_Mit --> E_ActionMit("Inserimento in Testbook <br/> tab POSITIVITA' MITIGATA")
+
+%% 3. ALTRA POSITIVITA' (Reputazionale/ESG)
+    E_WhatType -- "ALTRA POSITIVITA' <br/> (Antitrust, HSE, Etica)" --> E_Alt["ESITO: ALTRA POSITIVITA'"]
+    E_Alt --> E_ActionAlt("Inserimento in Testbook <br/> TAB 'ALTRA POSITIVITA'")
+    E_ActionMit & E_ActionAlt --> Form2_M["REPORT: FORM 2 <br/> (Esito Favorevole con Note)"]--> END
+
+
+%% WORKFLOW COMPLIANCE PROGRAM (PER RED FLAG)
+    Mandatory_CP --> CP_Eval{Programma <br/>Efficace?}
+    CP_Eval -- "NO" --> E_RF_Final
+    CP_Eval -- "SI" --> E_Mit
+
+%% ESCALATION E REPORTISTICA (FORM 2)
+    E_RF_Final --> RedFlag_Escalation("ESCALATION SISTEMI:<br/>1. DJ Factiva (Analisi Media Storica)<br/>COMPILAZIONE OUTPUT:<br/>1. Sistema DD4Eni 2.0<br/>2. Documento 'Allegato Red Flag'<br/>3. Bozza Rapporto Integrity")
+    RedFlag_Escalation --> Form2_RF["REPORT: FORM 2 <br/> (Segnalazione RED FLAG)"]
+    Form2_RF --> END(("FINE FASE 4: <br> SCREENING E FONTI APERTE"))
+
+
+    style Start fill:#FFE0B2 
+    style END fill:#FFE0B2
+    style WhatRF fill:#FFE0B2
+    style Search_Standard text-align:left
+    style Execution text-align:left
+    style Search_DU text-align:left
+    style COMPROG fill: #FBF266, stroke:#fbc02d 
+    style ScopeCheck fill:#9c4, stroke:#fbc02d
+    style Found_Check fill:#9c4, stroke:#fbc02d
+    style E_Clear fill:#fff9c4,stroke:#fbc02d,stroke-width:2px
+    style E_CheckID fill:#FBF266, stroke:#fbc02d, stroke-width:2px
+    style E_WhatType fill:#FBF266, stroke:#fbc02d, stroke-width:2px
+    style E_FP fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style Form1 fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px, text-align:left
+    style RF_Direct fill:#ffcdd2,stroke:#b71c1c,stroke-width:2
+    style E_RF_Time fill:#FBF266, stroke:#fbc02d
+    style E_RF_Sent fill:#FBF266, stroke:#fbc02d
+    style E_RF_Cond fill:#FBF266, stroke:#fbc02d
+    style E_Alt fill: #e2bb8b, stroke:#01579b, stroke-width:2px
+    style Mandatory_CP fill:#EC849A, stroke:#fbc02d, stroke-width:2px, text-align: left
+    style E_RF_Final fill:#ffcdd2,stroke:#b71c1c,stroke-width:3px
+    style CP_Eval fill:#9c4, stroke:#fbc02d
+    style E_Mit fill:#c8e6c9,stroke:#2e7d32
+    style Form2_M fill:#c8e6c9,stroke:#2e7d32
+    style Form2_RF fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px, text-align:left
+    style Cat_Split fill:#FBF266
+    style RF_AC fill:#ffcdd2,stroke:#b71c1c, text-align:left
+    style RF_DU fill:#ffcdd2,stroke:#b71c1c, text-align:left
+    style RF_VM fill:#ffcdd2,stroke:#b71c1c, text-align:left
+    style RF_Other text-align:left
+    style Discussion fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Manager_Check fill:#e1f5fe,stroke:#000`
+    };
+
+    async function loadDiagram(id) {
+        const container = document.getElementById('diagram-container');
+        container.innerHTML = ''; 
+
+        const holder = document.createElement('pre');
+        holder.className = 'mermaid';
+        holder.textContent = diagrams[id];
+        container.appendChild(holder);
+
+        document.querySelectorAll('.nav button').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.getElementById('btn-' + id);
+        if (activeBtn) activeBtn.classList.add('active');
+
+        try {
+            await mermaid.run({ nodes: [holder] });
+        } catch (err) {
+            console.error("Errore nel rendering Mermaid:", err);
+        }
+    }
+
+    window.onload = () => loadDiagram('master');
+</script>
+<div id="zoom-controls"><button class="zoom-btn" id="zoom-in">+</button><button class="zoom-btn" id="zoom-out">-</button><button class="zoom-btn" id="zoom-reset">Reset</button></div><script>
+document.addEventListener('DOMContentLoaded', () => {
+  const container = document.getElementById('diagram-container');
+  if (!container) return;
+
+  let scale = 1;
+  let pos = { x: 0, y: 0 };
+
+  function applyTransform() {
+    container.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${scale})`;
+    container.style.transformOrigin = '0 0';
+  }
+
+  document.getElementById('zoom-in').onclick = () => {
+    scale = Math.min(scale + 0.1, 5);
+    applyTransform();
+  };
+
+  document.getElementById('zoom-out').onclick = () => {
+    scale = Math.max(scale - 0.1, 0.2);
+    applyTransform();
+  };
+
+  document.getElementById('zoom-reset').onclick = () => {
+    scale = 1;
+    pos = { x: 0, y: 0 };
+    applyTransform();
+  };
+});
+</script></body>
+</html>
